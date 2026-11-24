@@ -1,8 +1,6 @@
 # databricks-cgn
 
-Base simulada para o case de priorização de leads da Captação.
-
-O cenário: o comercial (Call Center/WhatsApp) consegue abordar só 20% dos leads por dia, hoje por ordem de chegada (FIFO), com conversão em torno de 3%. A ideia é ter uma V1 que priorize esses leads em 5 dias úteis. Este repositório não traz a solução. Ele monta os dados para discutir e construir a solução em cima deles.
+Base simulada para o case de priorização de leads da Captação, com as decisões técnicas por trás de cada etapa: como os dados foram modelados para refletir as restrições do cenário e como o processamento foi pensado para escalar no Databricks.
 
 ## Estrutura
 
@@ -33,6 +31,17 @@ Números aproximados: 280 mil leads em 180 dias, 124 mil tentativas de contato e
 - **Navegação (~40% com lead_id)**: cada lead tem sessões antes e depois do cadastro. Antes do cadastro não há lead_id; na sessão do cadastro só os eventos a partir do formulário são identificados, e o `session_id` liga as duas partes. Visitantes que nunca viraram lead completam o volume anônimo.
 
 Os parâmetros principais (período, volume, capacidade de 20%) ficam no começo do `01_gerar_dados`.
+
+## Decisões técnicas
+
+- **Spark nativo em vez de UDF**: toda a geração usa funções do `pyspark.sql.functions` (`rand`, `randn`, `sequence` + `explode`). Nada passa por UDF Python nem pelo driver, então o mesmo código escala do volume atual para bilhões de linhas só aumentando partições.
+- **Janelas sempre particionadas**: o `lead_id` é numerado por dia (`PARTITION BY dt`) e não com um `row_number()` global, que jogaria tudo numa partição só. A mesma numeração já define a ordem FIFO, então a etapa do CRM não precisa de outra janela.
+- **Staging em Delta em vez de cache**: no serverless não existe `cache()`/`persist()`. As etapas intermediárias são gravadas em tabelas `stg_` e lidas de volta, o que também garante que CRM, matrícula e navegação partem exatamente da mesma base de leads. No fim elas são removidas.
+- **Volume reduzido, proporção mantida**: a navegação tem 6,5 milhões de eventos e não bilhões, para rodar rápido e barato. O que importa para o case é manter as proporções: 40% identificado, 25% de canal nulo, 20% de cobertura.
+- **Nulos e anonimato com causa**: o canal vazio e os eventos sem `lead_id` seguem uma regra (canal sem utm, navegação antes do cadastro), como acontece em produção. Assim a base permite discutir tratamento de nulo e identity stitching via `session_id` de forma realista.
+- **Censura no fim do período**: matrícula que aconteceria depois da data de corte não entra. Leads recentes parecem converter menos, o que obriga a pensar na janela de maturação antes de treinar ou avaliar qualquer coisa.
+- **Análise com uma leitura por tabela grande**: no `02`, a navegação é agregada por sessão uma única vez em PySpark e essa base serve para todas as análises seguintes. O CRM vira uma linha por lead com `PARTITION BY lead_id` e é cruzado com os leads uma vez só. O SQL fica para as consultas leves e legíveis.
+- **Reprodutível**: todas as funções aleatórias usam seed fixa. Nas execuções feitas, os volumes bateram exatamente entre uma rodada e outra.
 
 ## Como rodar
 
