@@ -1,6 +1,6 @@
 # databricks-cgn
 
-Base simulada para o case de priorização de leads da Captação, com as decisões técnicas por trás de cada etapa: como os dados foram modelados para refletir as restrições do cenário e como o processamento foi pensado para escalar no Databricks.
+Case de priorização de leads da Captação: uma base simulada com as restrições do cenário e uma V1 de score que ordena a fila do comercial no lugar do FIFO, com as decisões técnicas de cada etapa.
 
 ## Estrutura
 
@@ -8,6 +8,7 @@ Base simulada para o case de priorização de leads da Captação, com as decis�
 notebooks/
   01_gerar_dados.ipynb        gera as tabelas em cogna.captacao
   02_composicao_dados.ipynb   mostra como a base ficou composta
+  03_score_v1.ipynb           variáveis por lead, score V1 e comparação com o FIFO
 ```
 
 Os notebooks foram exportados do Databricks com os resultados da última execução, então dá para ver as saídas direto no GitHub.
@@ -20,7 +21,7 @@ Os notebooks foram exportados do Databricks com os resultados da última execuç
 | `tb_abordagem_crm` | lead_id, dt_tentativa_contato, canal_contato, status_contato |
 | `tb_navegacao` | session_id, lead_id, ts_evento, pagina, tempo_permanencia_seg |
 
-Além delas, o `02` mantém a `tb_nav_sessao`, com a classificação de cada sessão de navegação.
+Além delas, o `02` mantém a `tb_nav_sessao`, com a classificação de cada sessão de navegação, e o `03` cria `tb_features_lead` (variáveis por lead), `tb_pesos_score` (pontos de cada faixa) e `tb_score_lead` (score de cada lead).
 
 Números aproximados: 280 mil leads em 180 dias, 120 mil tentativas de contato e 6,5 milhões de eventos de navegação.
 
@@ -48,11 +49,18 @@ Os parâmetros (período, volume, capacidade, feriados) ficam no começo do `01_
 - As análises leem esse resumo e uma janela de tempo da tabela bruta, nunca o histórico inteiro.
 - Distribuições usam amostra e contagens distintas são aproximadas.
 
+## Score V1
+
+- **Variáveis** só com o que existe no momento de priorizar: curso, modalidade, canal, período e tipo de dia de entrada, e navegação até o lead entrar na fila (sessões, tempo no site, visitas a preço, bolsas e inscrição). Nada de CRM, data de matrícula ou páginas de pós-matrícula.
+- **Score por pontos**: cada faixa ganha pontos pela conversão histórica, aprendida nos leads que o FIFO já abordou. Cabe no prazo, é explicável para o comercial e os pesos ficam auditáveis.
+- **Avanço sobre o FIFO**: como o FIFO escolhe por hora de chegada, os leads abordados por ele servem de amostra sem viés de intenção. Num período fora do aprendizado, os 20% de maior score converteram cerca de 2 vezes a média do FIFO e concentraram mais de 40% das matrículas. O ganho real se confirma em produção mantendo parte da capacidade no FIFO.
+
 ## Como rodar
 
 1. No Databricks, crie o catálogo `cogna` (Catalog > Create catalog, usando o Default Storage). O notebook cria o schema `captacao` sozinho.
 2. Ligue este repositório ao workspace em Workspace > Create > Git folder, com a URL `https://github.com/brocchirodrigo/databricks-cgn`.
 3. Abra `notebooks/01_gerar_dados` e rode tudo em Serverless. Leva cerca de 1 minuto.
 4. Abra `notebooks/02_composicao_dados` e rode tudo para ver volumes, distribuições, cobertura do CRM, navegação e checagens de integridade.
+5. Abra `notebooks/03_score_v1` e rode tudo para gerar as variáveis, o score e a comparação com o FIFO.
 
 Rodar o 01 de novo recria a base e zera a `tb_nav_sessao`. Rodar o 02 de novo só classifica sessões novas.
