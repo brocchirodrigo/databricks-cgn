@@ -53,7 +53,7 @@ Os parâmetros (período, volume, capacidade, feriados) ficam no começo do `01_
 
 - **Variáveis** só com o que existe no momento de priorizar: curso, modalidade, canal, período e tipo de dia de entrada, e navegação até o lead entrar na fila (sessões, tempo no site, visitas a preço, bolsas e inscrição). Nada de CRM, data de matrícula ou páginas de pós-matrícula.
 - **Score por pontos**: cada faixa ganha pontos pela conversão histórica, aprendida nos leads que o FIFO já abordou. Cabe no prazo, é explicável para o comercial e os pesos ficam auditáveis.
-- **Avanço sobre o FIFO**: como o FIFO escolhe por hora de chegada, os leads abordados por ele servem de amostra sem viés de intenção. Num período fora do aprendizado, os 20% de maior score converteram cerca de 2 vezes a média do FIFO e concentraram mais de 40% das matrículas. O ganho real se confirma em produção mantendo parte da capacidade no FIFO.
+- **Avanço sobre o FIFO**: como o FIFO escolhe por hora de chegada, os leads abordados por ele servem de amostra sem viés de intenção. Em um período que não entrou no aprendizado, os 20% de maior score converteram cerca de duas vezes a média do FIFO e concentraram mais de 40% das matrículas. O ganho real se confirma em produção mantendo parte da capacidade no FIFO.
 
 ## Como rodar
 
